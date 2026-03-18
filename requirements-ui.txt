@@ -1,0 +1,12 @@
+streamlit
+streamlit-authenticator
+pandas
+numpy
+matplotlib
+seaborn
+requests
+shap
+lime
+streamlit_cookies_controller
+passlib
+slugify

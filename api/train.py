@@ -24,6 +24,10 @@ class TrainRequest(BaseModel):
     use_default_params: bool = True
     hyperparameters: Optional[Dict] = None
 
+    # Auto-tuning & Cross-Validation
+    tuning_method: str = "manual"   # manual | grid | random | bayesian
+    cv_folds: int = 0               # 0 = disabled, 3/5/10 = enabled
+
 
 # =====================================================
 # START TRAINING (BACKGROUND)
@@ -59,23 +63,34 @@ def train_model(req: TrainRequest):
             )
 
         # -------------------------------------------------
+        # RESOLVE TUNING METHOD
+        # -------------------------------------------------
+        if req.use_default_params:
+            tuning_method = "manual"
+        else:
+            tuning_method = req.tuning_method  # manual | grid | random | bayesian
+
+        # -------------------------------------------------
         # PREP CONFIG PASSED TO WORKER (AS ONE OBJECT)
         # -------------------------------------------------
         prep_config = {
-            "target": config.target,
-            "features": config.features,
-            "test_size": config.test_size,
-            "stratify": config.stratify,
-            "encoding": config.encoding,
-            "scaling": config.scaling,
-            "random_state": req.random_state,
+            "target":        config.target,
+            "features":      config.features,
+            "test_size":     config.test_size,
+            "stratify":      config.stratify,
+            "encoding":      config.encoding,
+            "scaling":       config.scaling,
+            "random_state":  req.random_state,
+            "tuning_method": tuning_method,
+            "cv_folds":      req.cv_folds,
         }
 
         # -------------------------------------------------
         # PARAMETER HANDLING
+        # Only pass user_params when doing manual tuning
         # -------------------------------------------------
         user_params = None
-        if not req.use_default_params:
+        if tuning_method == "manual" and not req.use_default_params:
             user_params = req.hyperparameters or {}
 
         # -------------------------------------------------
@@ -116,7 +131,7 @@ def training_status(job_id: str):
 
 
 # =====================================================
-# GET LATEST MODEL FOR PROJECT (UNCHANGED)
+# GET LATEST MODEL FOR PROJECT
 # =====================================================
 @router.get("/latest/{project_id}")
 def get_latest_model(project_id: int):
@@ -135,9 +150,9 @@ def get_latest_model(project_id: int):
             )
 
         return {
-            "id": artifact.id,
-            "algorithm": artifact.algorithm,
-            "metrics": artifact.metrics,
+            "id":         artifact.id,
+            "algorithm":  artifact.algorithm,
+            "metrics":    artifact.metrics,
             "created_at": artifact.created_at,
         }
 

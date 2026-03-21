@@ -14,6 +14,7 @@ Uses:
 from typing import Dict, Optional, List
 import redis
 from rq import Queue
+from rq.job import Job
 from uuid import uuid4
 from datetime import datetime
 import json
@@ -43,6 +44,9 @@ training_queue = Queue(
 def _job_key(job_id: str) -> str:
     return f"job:{job_id}"
 
+# TTL: keep job status in Redis for 1 hour
+JOB_TTL_SECONDS = 3600
+
 
 # =====================================================
 # ENQUEUE TRAINING JOB (STRING IMPORT — NO CIRCULAR)
@@ -60,7 +64,7 @@ def enqueue_training_job(
 
     job_id = str(uuid4())
 
-    # Initial job state
+    # Initial job state with TTL
     redis_conn.hset(
         _job_key(job_id),
         mapping={
@@ -73,6 +77,8 @@ def enqueue_training_job(
             "created_at": datetime.utcnow().isoformat(),
         },
     )
+    # Set TTL so key doesn't linger forever
+    redis_conn.expire(_job_key(job_id), JOB_TTL_SECONDS)
 
     # ✅ IMPORTANT: STRING PATH ONLY
     training_queue.enqueue(
@@ -111,6 +117,7 @@ def update_job_progress(
             "updated_at": datetime.utcnow().isoformat(),
         },
     )
+    redis_conn.expire(_job_key(job_id), JOB_TTL_SECONDS)
 
 
 # =====================================================
@@ -138,6 +145,7 @@ def mark_job_completed(
             "completed_at": datetime.utcnow().isoformat(),
         },
     )
+    redis_conn.expire(_job_key(job_id), JOB_TTL_SECONDS)
 
 
 # =====================================================
@@ -153,6 +161,7 @@ def mark_job_failed(job_id: str, *, error: str):
             "failed_at": datetime.utcnow().isoformat(),
         },
     )
+    redis_conn.expire(_job_key(job_id), JOB_TTL_SECONDS)
 
 
 # =====================================================
@@ -160,23 +169,54 @@ def mark_job_failed(job_id: str, *, error: str):
 # =====================================================
 
 def get_job_status(job_id: str) -> Dict:
-    if not redis_conn.exists(_job_key(job_id)):
+    # ── 1. Check our custom Redis hash first ──────────────────────────────
+    if redis_conn.exists(_job_key(job_id)):
+        data = redis_conn.hgetall(_job_key(job_id))
+        result = data.get("result")
         return {
-            "status": "not_found",
-            "progress": 0,
-            "message": "Job not found",
+            "job_id": job_id,
+            "status": data.get("status"),
+            "progress": int(data.get("progress", 0)),
+            "message": data.get("message"),
+            "algorithm": data.get("algorithm"),
+            "result": json.loads(result) if result else None,
         }
 
-    data = redis_conn.hgetall(_job_key(job_id))
-    result = data.get("result")
+    # ── 2. Fallback: check RQ's own job registry ──────────────────────────
+    # This handles the race condition where the worker finishes before
+    # our custom key is written, or the key has expired.
+    try:
+        job = Job.fetch(job_id, connection=redis_conn)
+        rq_status = str(job.get_status())
 
+        status_map = {
+            "queued":   "queued",
+            "started":  "running",
+            "finished": "completed",
+            "failed":   "failed",
+            "stopped":  "failed",
+            "canceled": "failed",
+            "deferred": "queued",
+        }
+
+        mapped = status_map.get(rq_status, "running")
+
+        return {
+            "job_id":    job_id,
+            "status":    mapped,
+            "progress":  100 if mapped == "completed" else 50,
+            "message":   f"Job {rq_status}",
+            "algorithm": None,
+            "result":    None,
+        }
+    except Exception:
+        pass
+
+    # ── 3. Truly not found ────────────────────────────────────────────────
     return {
-        "job_id": job_id,
-        "status": data.get("status"),
-        "progress": int(data.get("progress", 0)),
-        "message": data.get("message"),
-        "algorithm": data.get("algorithm"),
-        "result": json.loads(result) if result else None,
+        "status":   "not_found",
+        "progress": 0,
+        "message":  "Job not found",
     }
 
 
@@ -190,11 +230,11 @@ def list_jobs() -> List[Dict]:
     for key in redis_conn.scan_iter("job:*"):
         data = redis_conn.hgetall(key)
         jobs.append({
-            "job_id": key.replace("job:", ""),
-            "status": data.get("status"),
-            "progress": int(data.get("progress", 0)),
-            "message": data.get("message"),
-            "algorithm": data.get("algorithm"),
+            "job_id":     key.replace("job:", ""),
+            "status":     data.get("status"),
+            "progress":   int(data.get("progress", 0)),
+            "message":    data.get("message"),
+            "algorithm":  data.get("algorithm"),
             "created_at": data.get("created_at"),
         })
 

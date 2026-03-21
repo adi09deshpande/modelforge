@@ -106,6 +106,7 @@ class ModelArtifact(SQLModel, table=True):
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
+
 # -----------------------------
 # DATASET PREPARATION CONFIG
 # -----------------------------
@@ -130,10 +131,11 @@ class DatasetPreparationConfig(SQLModel, table=True):
     test_size: float
     stratify: bool = False
 
-    encoding: Optional[str] = None     # label | onehot
-    scaling: Optional[str] = None      # standard | minmax
+    encoding: Optional[str] = None
+    scaling: Optional[str] = None
 
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 # -----------------------------
 # MODEL EXPLAINABILITY
@@ -149,7 +151,7 @@ class ModelExplainability(SQLModel, table=True):
         unique=True,
     )
 
-    method: str  # shap | lime
+    method: str
 
     global_importance: Dict[str, float] = Field(
         sa_column=Column(JSON),
@@ -158,5 +160,48 @@ class ModelExplainability(SQLModel, table=True):
     local_explanation: Dict[str, float] = Field(
         sa_column=Column(JSON),
     )
+
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# -----------------------------
+# EXPERIMENT
+# -----------------------------
+class Experiment(SQLModel, table=True):
+    __tablename__ = "experiment"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+
+    project_id: int = Field(foreign_key="project.id", index=True)
+    dataset_id: int = Field(foreign_key="dataset.id", index=True)
+    model_id: Optional[int] = Field(
+        foreign_key="modelartifact.id",
+        index=True,
+        default=None,
+    )
+
+    name: str                    # Auto-generated e.g. "RFC-001"
+    algorithm: str
+    problem_type: str
+    tuning_method: str = "manual"
+    cv_folds: int = 0
+
+    params: Dict[str, Any] = Field(
+        sa_column=Column(JSON),
+        default_factory=dict,
+    )
+    metrics: Dict[str, Any] = Field(
+        sa_column=Column(JSON),
+        default_factory=dict,
+    )
+
+    training_time_seconds: Optional[float] = None
+    dataset_version: Optional[int] = None
+
+    tags: Optional[List[str]] = Field(
+        sa_column=Column(JSON),
+        default=None,
+    )
+    notes: Optional[str] = None
 
     created_at: datetime = Field(default_factory=datetime.utcnow)

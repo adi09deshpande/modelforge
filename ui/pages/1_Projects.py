@@ -11,15 +11,24 @@ st.set_page_config(page_title="ModelForge • Projects", layout="wide")
 # -------------------------
 with st.sidebar:
     st.header("Navigate")
-    st.page_link("Home.py", label="Home")
-    st.page_link("pages/1_Projects.py", label="Projects")
-    st.page_link("pages/2_Upload_Data.py", label="Upload & Explore")
-    st.page_link("pages/3_EDA_Preprocessing.py", label="EDA & Preprocessing")
-    st.page_link("pages/4_Feature_Engineering.py", label="Feature Engineering")
-    st.page_link("pages/5_Data_Preparation.py", label="Data Preparation")
-    st.page_link("pages/6_Train_Model.py", label="Train Model")
-    st.page_link("pages/7_Model_Explainability.py", label="Model Explainability")
 
+    st.markdown('<div style="font-size:11px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,0.35);text-transform:uppercase;margin:8px 0 4px 4px;">📁 Core</div>', unsafe_allow_html=True)
+    st.page_link("Home.py",                        label="🏠 Home")
+    st.page_link("pages/1_Projects.py",            label="📁 Projects")
+
+    st.markdown('<div style="font-size:11px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,0.35);text-transform:uppercase;margin:8px 0 4px 4px;">📊 Data</div>', unsafe_allow_html=True)
+    st.page_link("pages/2_Upload_Data.py",         label="📂 Upload & Explore")
+    st.page_link("pages/3_EDA_Preprocessing.py",   label="📊 EDA & Preprocessing")
+    st.page_link("pages/4_Feature_Engineering.py", label="🛠️ Feature Engineering")
+    st.page_link("pages/10_Feature_Selection.py",  label="🎯 Feature Selection")
+    st.page_link("pages/5_Data_Preparation.py",    label="📦 Data Preparation")
+
+    st.markdown('<div style="font-size:11px;font-weight:700;letter-spacing:1px;color:rgba(255,255,255,0.35);text-transform:uppercase;margin:8px 0 4px 4px;">🤖 Modelling</div>', unsafe_allow_html=True)
+    st.page_link("pages/6_Train_Model.py",         label="🚀 Train Model")
+    st.page_link("pages/8_Experiments.py",         label="🧪 Experiments")
+    st.page_link("pages/7_Model_Explainability.py",label="🧠 Explainability")
+    st.page_link("pages/9_Predict.py",             label="🎯 Predict")
+    
 # -------------------------
 # AUTH GATE
 # -------------------------

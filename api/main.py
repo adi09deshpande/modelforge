@@ -23,6 +23,7 @@ from api.data_preparation_config import router as prep_config_router
 from api.experiments import router as experiments_router
 from api.predict import router as predict_router
 from api.feature_selection import router as feature_selection_router
+from api.chat import router as chat_router
 
 
 # -------------------------------------------------
@@ -30,7 +31,7 @@ from api.feature_selection import router as feature_selection_router
 # -------------------------------------------------
 app = FastAPI(
     title="ModelForge API",
-    version="0.3.0",
+    version="0.4.0",
     description="Backend API for ModelForge ML lifecycle platform",
 )
 
@@ -94,3 +95,6 @@ app.include_router(predict_router, prefix="/predict", tags=["Prediction"])
 
 # Feature selection (importance / correlation / RFE)
 app.include_router(feature_selection_router, prefix="/feature-selection", tags=["Feature Selection"])
+
+# AI Assistant (Ollama-powered chat)
+app.include_router(chat_router, prefix="/chat", tags=["AI Assistant"])
